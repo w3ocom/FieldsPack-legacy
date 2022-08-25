@@ -21,14 +21,14 @@ class FieldsPackOptTest extends \PHPUnit\Framework\TestCase {
      * Sets up the fixture, for example, opens a network connection.
      * This method is called before a test is executed.
      */
-    protected function setUp(): void {
+    public function setUp() {
         $this->object = new FieldsPackOpt();
     }
 
     /*
      * @covers w3ocom\FieldsPack\FieldsPackOpt::__construct
      */
-    public function testConstruct(): void {
+    public function testConstruct() {
         $obj = new FieldsPackOpt("ntest");
         $this->assertEquals("\0\0", $obj->pack(['test' => 0]));
         

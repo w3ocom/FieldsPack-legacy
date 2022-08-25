@@ -13,14 +13,14 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
     
     protected $is_opt_mode = false;
 
-    protected function setUp(): void {
+    public function setUp() {
         $this->object = new FieldsPackMain();
     }
     
     /*
      * @covers w3ocom\FieldsPack\FieldsPackOpt::__construct
      */
-    public function testConstruct(): void {
+    public function testConstruct() {
         $obj = new FieldsPackMain("ntest");
         $this->assertEquals("\0\0", $obj->pack(['test' => 0]));
         
