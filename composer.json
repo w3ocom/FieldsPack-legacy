@@ -1,0 +1,20 @@
+{
+    "name": "w3ocom/fieldspack-legacy",
+    "description": "FieldsPack class to extend php pack/unpack functions. php5",
+    "authors": [
+        {
+            "name": "Alexander Jer",
+            "email": "alex@w3o.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "w3ocom\\FieldsPack\\": "src/"
+        }
+    },
+    "require-dev": {
+        "phpstan/phpstan": "1.8.2",
+        "vitexsoftware/phpunit-skeleton-generator": "*",
+        "phpunit/phpunit": "9.5.x-dev"
+    }
+}
