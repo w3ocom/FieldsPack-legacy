@@ -1,6 +1,6 @@
 {
     "name": "w3ocom/fieldspack-legacy",
-    "description": "FieldsPack class to extend php pack/unpack functions. php5",
+    "description": "FieldsPack class to extend php pack/unpack functions",
     "authors": [
         {
             "name": "Alexander Jer",
