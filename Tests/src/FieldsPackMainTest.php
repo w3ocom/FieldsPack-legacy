@@ -13,8 +13,11 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
     
     protected $is_opt_mode = false;
 
+    public $tst_class = 'FieldsPackMain';
+
     public function setUp() {
-        $this->object = new FieldsPackMain();
+        $class = "w3ocom\\FieldsPack\\" . $this->tst_class;
+        $this->object = new $class();
     }
     
     /*
@@ -22,7 +25,8 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
      */
     public function testConstruct() {
         $obj = new FieldsPackMain("ntest");
-        $this->assertEquals("\0\0", $obj->pack(['test' => 0]));
+        $result = $obj->pack(['test' => 0]);
+        $this->assertEquals("\0\0", $result->getStr());
         
         $this->expectException(\Exception::class);
         $obj = new FieldsPackMain("n");
@@ -95,18 +99,31 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
         ];
     }
     
-    public function goodAndBadVariantsProvider() {
-        return
-            $this->goodVariantsProvider() + $this->badVariantsProvider();
+    /**
+     * @dataProvider goodVariantsProvider
+     * @dataProvider badVariantsProvider
+     * @covers w3ocom\FieldsPack\FieldsPackMain::unpackFmtParse
+     */
+    public function testUnpackFmtParse($fields_un, $arr_or_err) {
+        $result = $this->object->UnpackFmtParse($fields_un);
+        if ($result->isErr()) {
+            $result = $result->getErr();
+        } else {
+            $result = $result->getArr();
+    }
+        $this->assertEquals($arr_or_err, $result);
     }
     
     /**
-     * @dataProvider goodAndBadVariantsProvider
-     * @covers w3ocom\FieldsPack\FieldsPackMain::unpackFmtParse
-     * @todo   Implement testUnpackFmtParse().
+     * @dataProvider goodVariantsProvider
+     * @covers w3ocom\FieldsPack\FieldsPackMain::packFmtFields
      */
-    public function testUnpackFmtParse($fields_un, $arr) {
-        $this->assertEquals($arr, $this->object->UnpackFmtParse($fields_un));
+    public function testPackFmtFields($fields_un, $fields_arr_or_err) {
+        if (is_array($fields_arr_or_err)) {
+            $result = $this->object->PackFmtFields($fields_arr_or_err);
+            $this->assertFalse($result->isErr());
+            $this->assertEquals($fields_un, $result->getStr());
+        }
     }
 
         
@@ -114,52 +131,42 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
      * @covers w3ocom\FieldsPack\FieldsPackMain::setFields
      */
     public function testSetFields() {
-        $this->assertFalse($this->object->SetFields("ntest"));
+        $result = $this->object->SetFields('ntest');
+        $this->assertFalse($result->isErr());
 
         // bad fields srting expected
-        $this->assertTrue(is_string(
-                $this->object->setFields('/*')
-        ));
+        $result = $this->object->setFields('/*');
+        $this->assertTrue($result->isErr());
         
         if ($this->is_opt_mode) {
             // Good _f
-            $this->assertFalse($this->object->SetFields("C_f/None/ntwo"));
+            $result = $this->object->SetFields("C_f/None/ntwo");
+            $this->assertFalse($result->isErr());
 
-            // Bad format _f
-            $this->assertTrue(is_string(
-                $this->object->SetFields("X_f/None/ntwo")
-            ));
+            // Bad format X_f
+            $result = $this->object->SetFields("X_f/None/ntwo");
+            $this->assertTrue($result->isErr());
 
-            // too many fields
-            $this->assertTrue(is_string(
-                $this->object->SetFields("C_f/Nf0/nf1/Cf2/nf3/Cf4/Cf5/Cf6/Cf7/Cf8")
-            ));
+            // too many fields (max 8)
+            $result = $this->object->SetFields("C_f/Nf0/nf1/Cf2/nf3/Cf4/Cf5/Cf6/Cf7/Cf8");
+            $this->assertTrue($result->isErr());
 
             // OK
-            $this->assertFalse(is_string(
-                $this->object->SetFields("C_f/Nf0/nf1/Cf2/nf3/Cf4/Cf5/Cf6/Cf7")
-            ));
+            $result = $this->object->SetFields("C_f/Nf0/nf1/Cf2/nf3/Cf4/Cf5/Cf6/Cf7");
+            $this->assertFalse($result->isErr());
         }
         
         // *-mode
-        $this->assertFalse($this->object->SetFields("n*one/C*two"));
+        $result = $this->object->SetFields('n*one/C*two');
+        $this->assertFalse($result->isErr());
 
         // Bad-fmt-* 
-        $this->assertTrue(is_string(
-            $this->object->SetFields("n*one/X*two")
-        ));
+        $result = $this->object->SetFields('n*one/X*two');
+        $this->assertTrue($result->isErr());
 
     }
     
-    /**
-     * @dataProvider goodVariantsProvider
-     * @covers w3ocom\FieldsPack\FieldsPackMain::packFmtFields
-     */
-    public function testPackFmtFields($fields_un, $fields_arr) {
-        $this->assertEquals($fields_un, $this->object->PackFmtFields($fields_arr));
-    }
 
-    
     public function packUnpackProvider() {
         $arr = [
             [ "Cone", 
@@ -175,11 +182,8 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
                     'one' => 'a'
                 ]
             ],
-            [ "C*x",
-                chr(0) . 'test',
-                'test'
-            ],
         ];
+
         if ($this->is_opt_mode) {
             $arr[] =
             [ 'C_f/Cone',
@@ -188,6 +192,22 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
                     'one' => 2
                 ]
             ];
+            $arr[] =
+            [ 'C_f/Cf1',
+                chr(1) . chr(2) . chr(3),
+                [
+                    'f1' => 2,
+                    '*' => chr(3)
+                ]
+            ];
+            $arr[] =
+            [ 'C_f/C*str',
+                chr(1) . chr(2) . chr(3) . chr(4),
+                [
+                    'str' => chr(3) . chr(4),
+                ]
+            ];
+
         }
         
         return $arr;
@@ -199,7 +219,9 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
      */
     public function testPack($fields_un, $pk, $arr) {
         $this->object->setFields($fields_un);
-        $this->assertEquals($pk, $this->object->pack($arr));
+        $result = $this->object->pack($arr);
+        $this->assertFalse($result->isErr());
+        $this->assertEquals($pk, $result->getStr());
     }
 
     public function unpackBadProvider() {
@@ -218,12 +240,20 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
      */
     public function testUnpack($fields_un, $pk, $arr) {
         $this->object->setFields($fields_un);
-        if ($arr === 'test') {
-            $arr = ['x' => '', '*' => $arr];
-        } elseif (is_array($arr) && !isset($arr['*'])) {
+        
+        $result = $this->object->unpack($pk);
+
+        if (is_array($arr)) {
+            if (!isset($arr['*'])) {
             $arr['*'] = '';
         }
-        $this->assertEquals($arr, $this->object->unpack($pk));
+            $this->assertFalse($result->isErr());
+            $this->assertEquals($arr, $result->getArr());
+        } else {
+            $this->assertTrue($result->isErr());
+            $this->assertEquals($arr, $result->getErr());
+        }
+    
     }
     
     /*
@@ -231,11 +261,15 @@ class FieldsPackMainTest extends \PHPUnit\Framework\TestCase {
      */
     public function testUnpackIncH() {
         $this->object->setFields('Cf1/Cf2/Cf3');
-        $pk = $this->object->pack(['f2' => 2, 'f3' => 3]);
+        $result = $this->object->pack(['f2' => 2, 'f3' => 3]);
+        $this->assertFalse($result->isErr());
+        $pk = $result->getStr();
         $this->assertEquals(chr(0) . chr(2) . chr(3), $pk);
         // set inc_h
         $this->object->inc_h = true;
-        $un = $this->object->unpack($pk);
+        $result = $this->object->unpack($pk);
+        $this->assertFalse($result->isErr());
+        $un = $result->getArr();
         $this->assertArrayHasKey('_h', $un);
     }
 }

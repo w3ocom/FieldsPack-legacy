@@ -11,4 +11,6 @@ interface FieldsPackInterface
 
     public static function unpackFmtParse($fields_un);
     public static function packFmtFields($fields_arr);
+    
+    public static function fmtMultiBytesLen($fmtChar);// int
 }

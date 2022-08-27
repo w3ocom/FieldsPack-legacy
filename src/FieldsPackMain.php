@@ -13,9 +13,9 @@ class FieldsPackMain implements FieldsPackInterface
 
     public function __construct($fields_un = false)
     {
-        if (is_string($fields_un)) {
+        if ($fields_un) {
             $err = $this->setFields($fields_un);
-            if ($err) {
+            if ($err->isErr()) {
                 throw new \Exception($err);
             }
         }
@@ -24,12 +24,12 @@ class FieldsPackMain implements FieldsPackInterface
     public function setFields($fields_un, $last_field = 'a**')
     {
         // parse fields to array
-        $fmt_arr = self::unpackFmtParse($fields_un);
-        if (is_string($fmt_arr)) {
-            return "Bad fields-format: $fields_un";
+        $result = self::unpackFmtParse($fields_un);
+        if ($result->isErr()) {
+            return new Result\Err("Bad fields-format: '$fields_un' (" . $result . ")");
         }
-        $this->fields = $fmt_arr;
 
+        $this->fields = $fmt_arr = $result->getArr();
 
         // calculate header_bytes
         $fcnt = count($fmt_arr);
@@ -37,15 +37,13 @@ class FieldsPackMain implements FieldsPackInterface
         
         // Only for FieldsPackOpt ext
         if (isset($this->header_name) && (key($fmt_arr) === $this->header_name)) {
-            // @codeCoverageIgnoreStart
             $this->header_bytes = self::fmtMultiBytesLen($fmt);
             if (!$this->header_bytes) {
-                return "Bad '{$this->header_name}' field format: $fmt";
+                return new Result\Err("Bad '{$this->header_name}' field format: $fmt");
             }
             if (--$fcnt > (8 * $this->header_bytes)) {
-                return "Too many fields";
+                return new Result\Err("Too many fields");
             }
-            // @codeCoverageIgnoreEnd
         }
 
         // caclulate fixed_len, fields_un, fields_pk, _ext_arr
@@ -63,7 +61,7 @@ class FieldsPackMain implements FieldsPackInterface
                 $len = strlen($st);
             }
             if (!$len) {
-                return "Bad format: $fmt";
+                return new Result\Err("Bad format: $fmt");
             }
             $fixed_len += $len;
             $pk[] = $fmt;
@@ -77,7 +75,7 @@ class FieldsPackMain implements FieldsPackInterface
         $this->fields_un = implode('/', $_ext_un);
         $this->_ext_arr = $_ext_arr;
 
-        return false;
+        return new Result\OK;
     }
 
     /**
@@ -101,7 +99,7 @@ class FieldsPackMain implements FieldsPackInterface
             'v' => 2,
             'C' => 1,
         ];
-        return isset($fmtCharToLen[$fmtChar]) ? $fmtCharToLen[$fmtChar] : false;
+        return isset($fmtCharToLen[$fmtChar]) ? $fmtCharToLen[$fmtChar] : 0;
     }
 
     /**
@@ -116,7 +114,7 @@ class FieldsPackMain implements FieldsPackInterface
      */
     public static function unpackFmtParse($fields_un)
     {
-        $nms = [];
+        $fields_arr = [];
         $arr = empty($fields_un) ? [] : explode('/', $fields_un);
         foreach($arr as $f_n) {
             $p = 0;
@@ -125,17 +123,18 @@ class FieldsPackMain implements FieldsPackInterface
                 if (!is_numeric($ch) && ($ch !== '*')) {
                     $name = substr($f_n, $p);
                     if (!strlen($name)) {
-                        return "Empty field name";
+                        return new Result\Err("Empty field name");
                     }
-                    $nms[$name] = substr($f_n, 0, $p);
+                    $fields_arr[$name] = substr($f_n, 0, $p);
                     break;
                 }
             }
         }
-        if (count($nms) === count($arr)) {
-            return $nms;
+        if (count($fields_arr) === count($arr)) {
+            // Successful result is Array
+            return new Result\Arr($fields_arr);
         }
-        return "Error unpack-format parsing";
+        return new Result\Err("Error unpack-format parsing");
     }
 
     /**
@@ -153,14 +152,11 @@ class FieldsPackMain implements FieldsPackInterface
         foreach($fields_arr as $name => $fmt) {
             $arr[] = $fmt . $name;
         }
-        return implode('/', $arr);
+        return new Result\Str(implode('/', $arr));
     }
 
     public function pack($arr)
     {
-        if (!is_array($arr)) {
-            $arr = ['*' => $arr];
-        }
         $wr_arr = [];
         $ex_str = '';
         foreach($this->fields as $name => $fmt) {
@@ -174,14 +170,14 @@ class FieldsPackMain implements FieldsPackInterface
 
         }
         $ext = isset($arr['*']) ? $arr['*'] : '';
-        return implode('', $wr_arr) . $ex_str . $ext;
+        return new Result\Str(implode('', $wr_arr) . $ex_str . $ext);
     }
 
     public function unpack($_raw)
     {
         $l = strlen($_raw);
         if ($l < $this->fixed_len) {
-            return "String too short";
+            return new Result\Err("String too short");
         }
         //$fix_str = substr($_raw, 0, $this->fixed_len);
         $arr = unpack($this->fields_un, $_raw);
@@ -194,6 +190,6 @@ class FieldsPackMain implements FieldsPackInterface
             $_fmt = $this->fields_un;
             $arr['_h'] = compact('_fmt', '_raw');
         }
-        return $arr;
+        return new Result\Arr($arr);
     }
 }

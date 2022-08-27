@@ -19,7 +19,7 @@ class FieldsPackOpt extends FieldsPackMain
         $mask = 0;
         $mask_fmt = reset($this->fields);
         if (key($this->fields) !== $this->header_name) {
-            throw new \LogicException("First field name must have name " . $this->header_name);
+            return new Result\Err("First field name must have name " . $this->header_name);
         }
         while($fmt = next($this->fields)) {
             $name = key($this->fields);
@@ -45,10 +45,10 @@ class FieldsPackOpt extends FieldsPackMain
             // additional check because values may contain NULL
             foreach($arr as $name => $v) {
                 if (isset($this->fields[$name])) continue;
-                throw new \OutOfBoundsException("Pack error: Unknown field '$name'");
+                return new Result\Err("Pack error: Unknown field '$name'");
             }
         }
-        return pack($mask_fmt, $mask) . implode('', $wr_arr) . $ex_str . $ext;
+        return new Result\Str(pack($mask_fmt, $mask) . implode('', $wr_arr) . $ex_str . $ext);
     }
 
     public function unpack($_raw)
@@ -58,7 +58,7 @@ class FieldsPackOpt extends FieldsPackMain
         }
 
         if (!is_string($_raw) || strlen($_raw) < $this->header_bytes) {
-            return "Illegal raw_data";
+            return new Result\Err("Illegal raw_data");
         }
 
         $mask_fmt = reset($this->fields);
@@ -91,6 +91,6 @@ class FieldsPackOpt extends FieldsPackMain
         if ($this->inc_h) {
             $arr['_h'] = compact('_fmt', '_raw', '_ext_arr');
         }
-        return $arr;
+        return new Result\Arr($arr);
     }
 }
